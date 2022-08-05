@@ -1,54 +1,107 @@
-use image::{io::Reader as ImageReader, ImageBuffer, Pixel};
+use image::{io::Reader as ImageReader, Pixel, GenericImageView, Rgba, DynamicImage};
 
 struct Chunk {
     x: u32,
     y: u32,
     width: u32,
     height: u32,
+    color: Rgba<u8>,
+    error: u64,
 }
 
 impl Chunk {
+    fn from_img(img: &DynamicImage, x: u32, y: u32, width: u32, height: u32) -> Self {
+        let sub = img.view(x, y, width, height);
+
+        // Filter the image data in the chunk's region
+        // There's gotta be a better way
+        let mut total = Rgba::<u32>::from_channels(0, 0, 0, 0);
+        for (_x, _y, p) in sub.pixels() {
+            for i in 0..4 {
+                total[i] += p[i] as u32;
+            }
+        }
+
+        let mut avg = Rgba::<u8>::from_channels(0, 0, 0, 0);
+        for i in 0..4 {
+            avg[i] = (total[i] / sub.pixels().count() as u32).try_into().unwrap();
+        }
+        let color = avg;
+
+        // Calculate error
+        let mut error: u64 = 0;
+        for (_x, _y, p) in sub.pixels() {
+            // Make an extension trait to handle this?
+            for i in 0..4 {
+                error += u8::abs_diff(p[i], color[i]) as u64;
+            }
+        }
+
+        Self { x, y, width, height, color, error }
+    }
+
     fn split(self) -> [Self; 4] {
+        let width0 = self.width / 2;
+        let width1 = self.width - width0;
+        let height0 = self.height / 2;
+        let height1 = self.height - height0;
+        let x0 = self.x;
+        let x1 = self.x + width0;
+        let y0 = self.y;
+        let y1 = self.y + height0;
+
+        let color = Rgba::from_channels(0, 0, 0, 0);
+
         #[rustfmt::skip]
         let chunks = [
-            Chunk { x: self.x,                  y: self.y,                      width: self.width / 2,              height: self.height / 2                 },
-            Chunk { x: self.x + self.width / 2, y: self.y,                      width: self.width - self.width / 2, height: self.height / 2                 },
-            Chunk { x: self.x,                  y: self.y + self.height / 2,    width: self.width / 2,              height: self.height - self.height / 2   },
-            Chunk { x: self.x + self.width / 2, y: self.y + self.height / 2,    width: self.width - self.width / 2, height: self.height - self.height / 2   },
+            Chunk { x: x0, y: y0, width: width0, height: height0, color, error: 0 },
+            Chunk { x: x1, y: y0, width: width1, height: height0, color, error: 0 },
+            Chunk { x: x0, y: y1, width: width0, height: height1, color, error: 0 },
+            Chunk { x: x1, y: y1, width: width1, height: height1, color, error: 0 },
         ];
         chunks
     }
 
-    fn error<P: Pixel, C>(img: &ImageBuffer<P, C>) -> u32 {
-        todo!()
-    }
+    /*fn error<P: Pixel, C>(&self, img: &ImageBuffer<P, C>) -> u32
+    where
+        P: Pixel,
+        C: Deref,
+        <C as Deref>::Target: <P as Pixel>::Subpixel,
+        /*
+            `<C as Deref>::Target = [<P as Pixel>::Subpixel]`
+            which is required by `ImageBuffer<P, C>: GenericImageView`
+        */
+    {
+        let sub = img.view(self.x, self.y, self.width, self.height);
+
+        let mut error: u64 = 0;
+        for (_x, _y, p) in sub.pixels() {
+            // Make an extension trait to handle this?
+            for i in 0..4 {
+                error += u8::abs_diff(p[i], self.color[i]) as u64;
+            }
+        }
+        error
+    }*/
 }
 
 fn main() {
     let img = ImageReader::open("rock.jpg").unwrap().decode().unwrap();
 
-    let mut scratch = img.clone();
-
-    let chunk = Chunk { x: 0, y: 0, width: img.width(), height: img.height() };
-    let mut queue = vec![chunk]; // TODO: make it a container of (error, chunk)
+    let start = Chunk::from_img(&img, 0, 0, img.width(), img.height());
+    let mut queue = vec![start];
     while let Some(chunk) = queue.pop() {
         // Get chunk with highest error
 
         // Split chunk into four new chunks
         let chunks = chunk.split();
 
-        // Filter each of the chunks into the scratch image
-        for c in &chunks {
-            // Get original image data for this chunk
-
-            // Filter the data
-
-            // Write this data into scratch
-        }
-
-        // Calculate the error for each chunk then put them back in the queue
-
+        // Put each chunk back in the queue
+        queue.extend(chunks.into_iter());
+        queue.sort_unstable_by_key(|c| c.error);
     }
 
+    // Render each chunk into a new image
+    let mut scratch = img.clone();
     scratch.save("output.png").unwrap();
 }
