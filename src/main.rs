@@ -92,8 +92,7 @@ fn main() {
 
     // Render each chunk into a new image
     let mut scratch = img;
-    for (i, chunk) in queue.into_iter().enumerate() {
-        println!("Chunk {i}");
+    for chunk in queue {
         for y in chunk.y..chunk.y + chunk.height {
             for x in chunk.x..chunk.x + chunk.width {
                 scratch.put_pixel(x, y, chunk.pixel);
