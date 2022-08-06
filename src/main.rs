@@ -1,4 +1,4 @@
-use image::{io::Reader as ImageReader, Pixel, GenericImageView, Rgba, DynamicImage, GenericImage};
+use image::{io::Reader as ImageReader, DynamicImage, GenericImage, GenericImageView, Pixel, Rgba};
 
 struct Chunk {
     x: u32,
@@ -37,7 +37,14 @@ impl Chunk {
             }
         }
 
-        Self { x, y, width, height, pixel, error }
+        Self {
+            x,
+            y,
+            width,
+            height,
+            pixel,
+            error,
+        }
     }
 
     fn split(self, img: &DynamicImage) -> [Self; 4] {
@@ -59,28 +66,6 @@ impl Chunk {
         ];
         chunks
     }
-
-    /*fn error<P: Pixel, C>(&self, img: &ImageBuffer<P, C>) -> u32
-    where
-        P: Pixel,
-        C: Deref,
-        <C as Deref>::Target: <P as Pixel>::Subpixel,
-        /*
-            `<C as Deref>::Target = [<P as Pixel>::Subpixel]`
-            which is required by `ImageBuffer<P, C>: GenericImageView`
-        */
-    {
-        let sub = img.view(self.x, self.y, self.width, self.height);
-
-        let mut error: u64 = 0;
-        for (_x, _y, p) in sub.pixels() {
-            // Make an extension trait to handle this?
-            for i in 0..4 {
-                error += u8::abs_diff(p[i], self.color[i]) as u64;
-            }
-        }
-        error
-    }*/
 }
 
 fn main() {
@@ -109,8 +94,8 @@ fn main() {
     let mut scratch = img.clone();
     for (i, chunk) in queue.into_iter().enumerate() {
         println!("Chunk {i}");
-        for y in chunk.y..chunk.y+chunk.height {
-            for x in chunk.x..chunk.x+chunk.width {
+        for y in chunk.y..chunk.y + chunk.height {
+            for x in chunk.x..chunk.x + chunk.width {
                 scratch.put_pixel(x, y, chunk.pixel);
             }
         }
