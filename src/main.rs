@@ -1,4 +1,4 @@
-use image::{io::Reader as ImageReader, DynamicImage, GenericImage, GenericImageView, Pixel, Rgba};
+use image::{io::Reader as ImageReader, DynamicImage, GenericImage, GenericImageView, Rgba};
 
 struct Chunk {
     x: u32,
@@ -15,14 +15,14 @@ impl Chunk {
 
         // Filter the image data in the chunk's region
         // There's gotta be a better way
-        let mut total = Rgba::<u32>::from_channels(0, 0, 0, 0);
+        let mut total = Rgba::<u32>::from([0, 0, 0, 0]);
         for (_x, _y, p) in sub.pixels() {
             for i in 0..4 {
                 total[i] += p[i] as u32;
             }
         }
 
-        let mut avg = Rgba::<u8>::from_channels(0, 0, 0, 0);
+        let mut avg = Rgba::<u8>::from([0, 0, 0, 0]);
         for i in 0..4 {
             avg[i] = (total[i] / sub.pixels().count() as u32).try_into().unwrap();
         }
@@ -91,7 +91,7 @@ fn main() {
     }
 
     // Render each chunk into a new image
-    let mut scratch = img.clone();
+    let mut scratch = img;
     for (i, chunk) in queue.into_iter().enumerate() {
         println!("Chunk {i}");
         for y in chunk.y..chunk.y + chunk.height {
