@@ -1,4 +1,4 @@
-use image::{io::Reader as ImageReader, DynamicImage, GenericImage, GenericImageView, Rgba};
+use image::{io::Reader as ImageReader, DynamicImage, GenericImage, GenericImageView, Pixel, Rgba};
 
 struct Chunk {
     x: u32,
@@ -17,13 +17,13 @@ impl Chunk {
         // There's gotta be a better way
         let mut total = Rgba::<u32>::from([0, 0, 0, 0]);
         for (_x, _y, p) in sub.pixels() {
-            for i in 0..4 {
+            for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
                 total[i] += p[i] as u32;
             }
         }
 
         let mut avg = Rgba::<u8>::from([0, 0, 0, 0]);
-        for i in 0..4 {
+        for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
             avg[i] = (total[i] / sub.pixels().count() as u32).try_into().unwrap();
         }
         let pixel = avg;
@@ -32,7 +32,7 @@ impl Chunk {
         let mut error: u64 = 0;
         for (_x, _y, p) in sub.pixels() {
             // Make an extension trait to handle this?
-            for i in 0..4 {
+            for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
                 error += u8::abs_diff(p[i], pixel[i]) as u64;
             }
         }
