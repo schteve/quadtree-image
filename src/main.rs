@@ -1,4 +1,6 @@
-use image::{io::Reader as ImageReader, DynamicImage, GenericImage, GenericImageView, Pixel, Rgba};
+use image::{io::Reader as ImageReader, GenericImageView, Pixel, Rgba, ImageBuffer};
+
+type ImgRgba = ImageBuffer<Rgba<u8>, Vec<u8>>;
 
 struct Chunk {
     x: u32,
@@ -10,7 +12,7 @@ struct Chunk {
 }
 
 impl Chunk {
-    fn from_img(img: &DynamicImage, x: u32, y: u32, width: u32, height: u32) -> Self {
+    fn from_img(img: &ImgRgba, x: u32, y: u32, width: u32, height: u32) -> Self {
         let sub = img.view(x, y, width, height);
 
         // Filter the image data in the chunk's region
@@ -55,7 +57,7 @@ impl Chunk {
         }
     }
 
-    fn split(self, img: &DynamicImage) -> [Self; 4] {
+    fn split(self, img: &ImgRgba) -> [Self; 4] {
         let width0 = self.width / 2;
         let width1 = self.width - width0;
         let height0 = self.height / 2;
@@ -83,6 +85,7 @@ impl Chunk {
 
 fn main() {
     let img = ImageReader::open("rock.jpg").unwrap().decode().unwrap();
+    let img = img.to_rgba8(); // To keep this program simple we only operate in RGBA space
 
     let start = Chunk::from_img(&img, 0, 0, img.width(), img.height());
     let mut queue = vec![start];
