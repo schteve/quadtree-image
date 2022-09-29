@@ -1,5 +1,5 @@
 use image::io::Reader as ImageReader;
-use quadtree_image::{Quad, Filter};
+use quadtree_image::{Filter, Quad};
 
 fn main() {
     let img = ImageReader::open("rock.jpg").unwrap().decode().unwrap();

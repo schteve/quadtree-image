@@ -1,4 +1,6 @@
-use image::{GenericImageView, Pixel, Rgba, ImageBuffer, SubImage};
+use std::iter;
+
+use image::{GenericImageView, ImageBuffer, Pixel, Rgba, SubImage};
 
 type ImgRgba = ImageBuffer<Rgba<u8>, Vec<u8>>;
 
@@ -36,7 +38,9 @@ impl Chunk {
         // Scale error based on color spectrum
         //let coeffs = [0.2989, 0.5870, 0.1140, 0.0];
         let coeffs = [1.0, 1.0, 1.0, 0.0];
-        let error: u64 = std::iter::zip(error_raw, coeffs).map(|(e, c)| (e as f64 * c) as u64).sum();
+        let error: u64 = iter::zip(error_raw, coeffs)
+            .map(|(e, c)| (e as f64 * c) as u64)
+            .sum();
 
         Self {
             x,
@@ -122,10 +126,7 @@ impl<'a> Quad<'a> {
             }
         }
 
-        Self {
-            chunks: queue,
-            img,
-        }
+        Self { chunks: queue, img }
     }
 
     // Render each chunk into a new image
