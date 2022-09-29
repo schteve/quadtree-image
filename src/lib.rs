@@ -138,7 +138,7 @@ impl<'a> Quad<'a> {
             for y in y0..y1 {
                 for x in x0..x1 {
                     if with_borders == true && (x == x0 || x + 1 == x1 || y == y0 || y + 1 == y1) {
-                        scratch.put_pixel(x, y, Rgba::from([0, 0, 0, 0])); // TODO: No alpha
+                        scratch.put_pixel(x, y, Rgba::from([0, 0, 0, 255]));
                     } else {
                         scratch.put_pixel(x, y, chunk.pixel);
                     }
