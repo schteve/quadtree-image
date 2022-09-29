@@ -18,6 +18,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
+    println!("Reading source image...");
     let img = ImageReader::open(&args.input).unwrap().decode().unwrap();
 
     println!("Generating quadtree...");

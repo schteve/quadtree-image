@@ -49,7 +49,7 @@ impl Chunk {
 
         // Calculate raw error
         let calc = match err_calc {
-            ErrCalc::Linear => err,
+            ErrCalc::Linear => linear_err,
             ErrCalc::SqErr => sq_err,
             ErrCalc::Mse => mse,
         };
@@ -217,7 +217,7 @@ fn abs_err_sq(sub: &SubImage<&ImgRgba>, base: Rgba<u8>) -> [u64; 4] {
 }
 
 // Calculate total error
-fn err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
+fn linear_err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
     let mean = mean(sub);
     let output = abs_err(sub, mean);
 
