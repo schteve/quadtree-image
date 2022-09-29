@@ -27,8 +27,8 @@ impl Chunk {
 
         // Calculate raw error
         let calc = match filter {
-            Filter::Err => todo!(),
-            Filter::SqErr => todo!(),
+            Filter::Err => err,
+            Filter::SqErr => sq_err,
             Filter::Mse => mse,
         };
         let (error_raw, pixel) = calc(&sub);
@@ -149,8 +149,8 @@ impl<'a> Quad<'a> {
     }
 }
 
-fn mse(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
-    // Get average color
+// Get average color
+fn mean(sub: &SubImage<&ImgRgba>) -> Rgba<u8> {
     let mut total = [0, 0, 0, 0];
     for (_x, _y, p) in sub.pixels() {
         for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
@@ -158,24 +158,60 @@ fn mse(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
         }
     }
 
-    let mut avg = [0, 0, 0, 0];
+    let mut mean = [0, 0, 0, 0];
     for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
-        avg[i] = (total[i] / sub.pixels().count() as u32).try_into().unwrap();
+        mean[i] = (total[i] / sub.pixels().count() as u32).try_into().unwrap();
     }
+    Rgba::from(mean)
+}
 
-    // Calculate error from average color
-    let mut mse = [0u64; 4];
+// Calculate the total absolute error against a given pixel color
+fn abs_err(sub: &SubImage<&ImgRgba>, pixel: Rgba<u8>) -> [u64; 4] {
+    let mut output = [0u64; 4];
     for (_x, _y, p) in sub.pixels() {
         for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
-            let err = u8::abs_diff(p[i], avg[i]) as u64;
-            mse[i] += err * err;
+            output[i] += u8::abs_diff(p[i], pixel[i]) as u64;
         }
     }
+    output
+}
+
+// Calculate the total absolute square error against a given pixel color
+fn abs_err_sq(sub: &SubImage<&ImgRgba>, pixel: Rgba<u8>) -> [u64; 4] {
+    let mut output = [0u64; 4];
+    for (_x, _y, p) in sub.pixels() {
+        for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
+            let err = u8::abs_diff(p[i], pixel[i]) as u64;
+            output[i] += err * err;
+        }
+    }
+    output
+}
+
+// Calculate total error
+fn err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
+    let mean = mean(sub);
+    let output = abs_err(sub, mean);
+
+    (output, Rgba::from(mean))
+}
+
+// Calculate total squared error
+fn sq_err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
+    let mean = mean(sub);
+    let output = abs_err_sq(sub, mean);
+
+    (output, Rgba::from(mean))
+}
+
+// Calculate mean squared error
+fn mse(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
+    let (mut output, mean) = sq_err(sub);
 
     // MSE takes average of error
     for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
-        mse[i] /= sub.pixels().count() as u64;
+        output[i] /= sub.pixels().count() as u64;
     }
 
-    (mse, Rgba::from(avg))
+    (output, Rgba::from(mean))
 }

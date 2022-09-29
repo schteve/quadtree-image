@@ -6,7 +6,7 @@ fn main() {
     let img = img.to_rgba8(); // To keep this program simple we only operate in RGBA space
 
     println!("Generating quadtree...");
-    let quad = Quad::from_img(&img, 500, Filter::Mse); // TODO: let user specify depth
+    let quad = Quad::from_img(&img, 500, Filter::SqErr); // TODO: let user specify depth & filter
     println!("Rendering...");
     let output = quad.render(true);
 
