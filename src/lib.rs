@@ -130,7 +130,7 @@ impl<'a> Quad<'a> {
 
     // Render each chunk into a new image
     pub fn render(&self, with_borders: bool) -> ImgRgba {
-        let mut scratch = self.img.clone(); // TODO: clone img? or just create new one with same dims?
+        let mut scratch = ImgRgba::new(self.img.width(), self.img.height());
         for chunk in &self.chunks {
             let (x0, x1) = (chunk.x, chunk.x + chunk.width);
             let (y0, y1) = (chunk.y, chunk.y + chunk.height);
