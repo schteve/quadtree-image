@@ -17,7 +17,7 @@ struct Chunk {
     y: u32,
     width: u32,
     height: u32,
-    pixel: Rgba<u8>,
+    color: Rgba<u8>,
     error: u64,
     filter: Filter,
 }
@@ -33,13 +33,13 @@ impl Chunk {
             Filter::SqErr => sq_err,
             Filter::Mse => mse,
         };
-        let (error_raw, pixel) = calc(&sub);
+        let (error_raw, color) = calc(&sub);
 
         // Scale error based on color spectrum
         //let coeffs = [0.2989, 0.5870, 0.1140, 0.0];
         let coeffs = [1.0, 1.0, 1.0, 0.0];
         let error: u64 = iter::zip(error_raw, coeffs)
-            .map(|(e, c)| (e as f64 * c) as u64)
+            .map(|(e, c)| (e as f32 * c) as u64)
             .sum();
 
         Self {
@@ -47,7 +47,7 @@ impl Chunk {
             y,
             width,
             height,
-            pixel,
+            color,
             error,
             filter,
         }
@@ -106,8 +106,9 @@ pub struct Quad<'a> {
 }
 
 impl<'a> Quad<'a> {
+    #[must_use]
     pub fn from_img(img: &'a ImgRgba, depth: usize, filter: Filter) -> Self {
-        let start = Chunk::from_img(&img, 0, 0, img.width(), img.height(), filter);
+        let start = Chunk::from_img(img, 0, 0, img.width(), img.height(), filter);
         let mut queue = vec![start];
         let mut count = 0;
         while let Some(chunk) = queue.pop() {
@@ -117,7 +118,7 @@ impl<'a> Quad<'a> {
             let chunks = chunk.split(img);
 
             // Put the new chunks into the queue. Keep the queue sorted.
-            queue.extend(chunks.into_iter().filter_map(|x| x));
+            queue.extend(chunks.into_iter().flatten());
             queue.sort_unstable_by_key(|c| c.error);
 
             count += 1;
@@ -130,6 +131,7 @@ impl<'a> Quad<'a> {
     }
 
     // Render each chunk into a new image
+    #[must_use]
     pub fn render(&self, with_borders: bool) -> ImgRgba {
         let mut scratch = ImgRgba::new(self.img.width(), self.img.height());
         for chunk in &self.chunks {
@@ -138,10 +140,10 @@ impl<'a> Quad<'a> {
 
             for y in y0..y1 {
                 for x in x0..x1 {
-                    if with_borders == true && (x == x0 || x + 1 == x1 || y == y0 || y + 1 == y1) {
-                        scratch.put_pixel(x, y, Rgba::from([0, 0, 0, 255]));
+                    if with_borders && (x == x0 || x + 1 == x1 || y == y0 || y + 1 == y1) {
+                        scratch.put_pixel(x, y, [0, 0, 0, 255].into());
                     } else {
-                        scratch.put_pixel(x, y, chunk.pixel);
+                        scratch.put_pixel(x, y, chunk.color);
                     }
                 }
             }
@@ -154,35 +156,38 @@ impl<'a> Quad<'a> {
 fn mean(sub: &SubImage<&ImgRgba>) -> Rgba<u8> {
     let mut total = [0, 0, 0, 0];
     for (_x, _y, p) in sub.pixels() {
-        for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
-            total[i] += p[i] as u32;
+        for (i, t) in total.iter_mut().enumerate() {
+            let x: u32 = p[i].into();
+            *t += x;
         }
     }
 
     let mut mean = [0, 0, 0, 0];
-    for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
-        mean[i] = (total[i] / sub.pixels().count() as u32).try_into().unwrap();
+    let count: u32 = sub.pixels().count().try_into().unwrap();
+    for (m, t) in iter::zip(mean.iter_mut(), total.iter()) {
+        *m = (t / count).try_into().unwrap();
     }
-    Rgba::from(mean)
+    mean.into()
 }
 
 // Calculate the total absolute error against a given pixel color
-fn abs_err(sub: &SubImage<&ImgRgba>, pixel: Rgba<u8>) -> [u64; 4] {
+fn abs_err(sub: &SubImage<&ImgRgba>, base: Rgba<u8>) -> [u64; 4] {
     let mut output = [0u64; 4];
     for (_x, _y, p) in sub.pixels() {
-        for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
-            output[i] += u8::abs_diff(p[i], pixel[i]) as u64;
+        for (i, o) in output.iter_mut().enumerate() {
+            let diff: u64 = u8::abs_diff(p[i], base[i]).into();
+            *o += diff;
         }
     }
     output
 }
 
 // Calculate the total absolute square error against a given pixel color
-fn abs_err_sq(sub: &SubImage<&ImgRgba>, pixel: Rgba<u8>) -> [u64; 4] {
+fn abs_err_sq(sub: &SubImage<&ImgRgba>, base: Rgba<u8>) -> [u64; 4] {
     let mut output = [0u64; 4];
     for (_x, _y, p) in sub.pixels() {
         for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
-            let err = u8::abs_diff(p[i], pixel[i]) as u64;
+            let err: u64 = u8::abs_diff(p[i], base[i]).into();
             output[i] += err * err;
         }
     }
@@ -194,7 +199,7 @@ fn err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
     let mean = mean(sub);
     let output = abs_err(sub, mean);
 
-    (output, Rgba::from(mean))
+    (output, mean)
 }
 
 // Calculate total squared error
@@ -202,7 +207,7 @@ fn sq_err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
     let mean = mean(sub);
     let output = abs_err_sq(sub, mean);
 
-    (output, Rgba::from(mean))
+    (output, mean)
 }
 
 // Calculate mean squared error
@@ -210,9 +215,10 @@ fn mse(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
     let (mut output, mean) = sq_err(sub);
 
     // MSE takes average of error
-    for i in 0..Rgba::<u8>::CHANNEL_COUNT as usize {
-        output[i] /= sub.pixels().count() as u64;
+    let count = sub.pixels().count() as u64;
+    for o in &mut output {
+        *o /= count;
     }
 
-    (output, Rgba::from(mean))
+    (output, mean)
 }
