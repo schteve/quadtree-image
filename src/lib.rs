@@ -114,7 +114,7 @@ impl<'a> Quad<'a> {
 
             // Put the new chunks into the queue. Keep the queue sorted.
             queue.extend(chunks.into_iter().filter_map(|x| x));
-            queue.sort_unstable_by_key(|c| c.error); // TODO: use a BTreeSet?
+            queue.sort_unstable_by_key(|c| c.error);
 
             count += 1;
             if count >= depth {
