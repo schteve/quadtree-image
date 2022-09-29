@@ -1,14 +1,34 @@
-use std::iter;
-
-use image::{GenericImageView, ImageBuffer, Pixel, Rgba, SubImage};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgba, SubImage};
+use std::{fmt, iter};
 
 type ImgRgba = ImageBuffer<Rgba<u8>, Vec<u8>>;
 
 #[derive(Clone, Copy, Debug)]
-pub enum Filter {
-    Err,
+pub enum ErrCalc {
+    Linear,
     SqErr,
     Mse,
+}
+
+impl fmt::Display for ErrCalc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Linear => write!(f, "linear"),
+            Self::SqErr => write!(f, "square"),
+            Self::Mse => write!(f, "mse"),
+        }
+    }
+}
+
+impl From<&str> for ErrCalc {
+    fn from(item: &str) -> Self {
+        match item {
+            "linear" => Self::Linear,
+            "square" => Self::SqErr,
+            "mse" => Self::Mse,
+            _ => panic!("Unknown option: {item}"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -19,19 +39,19 @@ struct Chunk {
     height: u32,
     color: Rgba<u8>,
     error: u64,
-    filter: Filter,
+    err_calc: ErrCalc,
 }
 
 impl Chunk {
-    fn from_img(img: &ImgRgba, x: u32, y: u32, width: u32, height: u32, filter: Filter) -> Self {
+    fn from_img(img: &ImgRgba, x: u32, y: u32, width: u32, height: u32, err_calc: ErrCalc) -> Self {
         //println!("Chunk::from_img(x: {x}, y: {y}, width: {width}, height: {height}");
         let sub = img.view(x, y, width, height);
 
         // Calculate raw error
-        let calc = match filter {
-            Filter::Err => err,
-            Filter::SqErr => sq_err,
-            Filter::Mse => mse,
+        let calc = match err_calc {
+            ErrCalc::Linear => err,
+            ErrCalc::SqErr => sq_err,
+            ErrCalc::Mse => mse,
         };
         let (error_raw, color) = calc(&sub);
 
@@ -49,7 +69,7 @@ impl Chunk {
             height,
             color,
             error,
-            filter,
+            err_calc,
         }
     }
 
@@ -67,18 +87,18 @@ impl Chunk {
             // Chunk is big enough to split into four
             #[rustfmt::skip]
             let chunks = [
-                Some(Chunk::from_img(img, x0, y0, width0, height0, self.filter)),
-                Some(Chunk::from_img(img, x1, y0, width1, height0, self.filter)),
-                Some(Chunk::from_img(img, x0, y1, width0, height1, self.filter)),
-                Some(Chunk::from_img(img, x1, y1, width1, height1, self.filter)),
+                Some(Chunk::from_img(img, x0, y0, width0, height0, self.err_calc)),
+                Some(Chunk::from_img(img, x1, y0, width1, height0, self.err_calc)),
+                Some(Chunk::from_img(img, x0, y1, width0, height1, self.err_calc)),
+                Some(Chunk::from_img(img, x1, y1, width1, height1, self.err_calc)),
             ];
             chunks
         } else if self.width > 1 {
             // Chunk can only be split horizontally (vertical line)
             #[rustfmt::skip]
             let chunks = [
-                Some(Chunk::from_img(img, x0, y0, width0, self.height, self.filter)),
-                Some(Chunk::from_img(img, x1, y0, width1, self.height, self.filter)),
+                Some(Chunk::from_img(img, x0, y0, width0, self.height, self.err_calc)),
+                Some(Chunk::from_img(img, x1, y0, width1, self.height, self.err_calc)),
                 None,
                 None,
             ];
@@ -87,8 +107,8 @@ impl Chunk {
             // Chunk can only be split vertically (horizontal line)
             #[rustfmt::skip]
             let chunks = [
-                Some(Chunk::from_img(img, x0, y0, self.width, height1, self.filter)),
-                Some(Chunk::from_img(img, x0, y1, self.width, height1, self.filter)),
+                Some(Chunk::from_img(img, x0, y0, self.width, height1, self.err_calc)),
+                Some(Chunk::from_img(img, x0, y1, self.width, height1, self.err_calc)),
                 None,
                 None,
             ];
@@ -100,22 +120,24 @@ impl Chunk {
     }
 }
 
-pub struct Quad<'a> {
+pub struct Quad {
     chunks: Vec<Chunk>,
-    img: &'a ImgRgba,
+    img: ImgRgba,
 }
 
-impl<'a> Quad<'a> {
+impl Quad {
     #[must_use]
-    pub fn from_img(img: &'a ImgRgba, depth: usize, filter: Filter) -> Self {
-        let start = Chunk::from_img(img, 0, 0, img.width(), img.height(), filter);
+    pub fn from_img(img: DynamicImage, depth: u32, filter: ErrCalc) -> Self {
+        let img = img.into_rgba8(); // To keep this program simple we only operate in RGBA space
+
+        let start = Chunk::from_img(&img, 0, 0, img.width(), img.height(), filter);
         let mut queue = vec![start];
         let mut count = 0;
         while let Some(chunk) = queue.pop() {
             // Get chunk with highest error
 
             // Split chunk into four new chunks (or fewer if unable to split)
-            let chunks = chunk.split(img);
+            let chunks = chunk.split(&img);
 
             // Put the new chunks into the queue. Keep the queue sorted.
             queue.extend(chunks.into_iter().flatten());
