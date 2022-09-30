@@ -1,7 +1,11 @@
 use clap::Parser;
 use image::io::Reader as ImageReader;
+use image::{codecs::gif::GifEncoder, Frame};
 use quadtree_image::{ErrCalc, Quad};
-use std::path::PathBuf;
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 #[derive(Parser)]
 struct Args {
@@ -19,6 +23,9 @@ struct Args {
     /// Type of error calculation to use
     #[arg(short, long, value_enum, default_value_t = ErrCalc::Square)]
     err_calc: ErrCalc,
+    /// Output an animation instead of a single image
+    #[arg(short, long)]
+    animation: bool,
 }
 
 fn main() {
@@ -29,11 +36,28 @@ fn main() {
 
     println!("Generating quadtree...");
     let mut quad = Quad::from_img(img, args.err_calc);
-    quad.process(args.depth);
+    if args.animation {
+        println!("Encoding gif (this might take a while)...");
+        let out_file_name = if args.output.to_string_lossy() == "output.png" {
+            Path::new("output.gif")
+        } else {
+            &args.output
+        };
+        let out_file = File::create(out_file_name).unwrap();
 
-    println!("Rendering...");
-    let output = quad.render(!args.no_borders);
+        let frames = (0..args.depth).map(|_| {
+            quad.process(1);
+            let rendered = quad.render(!args.no_borders);
+            Frame::new(rendered)
+        });
+        GifEncoder::new(out_file).encode_frames(frames).unwrap();
+    } else {
+        quad.process(args.depth);
 
-    println!("Saving to disk...");
-    output.save(&args.output).unwrap();
+        println!("Rendering...");
+        let output = quad.render(!args.no_borders);
+
+        println!("Saving to disk...");
+        output.save(&args.output).unwrap();
+    }
 }
