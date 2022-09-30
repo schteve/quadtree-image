@@ -17,7 +17,7 @@ struct Args {
     #[arg(short, long)]
     no_borders: bool,
     /// Type of error calculation to use
-    #[arg(short, long, value_enum, default_value_t = ErrCalc::SqErr)]
+    #[arg(short, long, value_enum, default_value_t = ErrCalc::Square)]
     err_calc: ErrCalc,
 }
 

@@ -7,7 +7,7 @@ type ImgRgba = ImageBuffer<Rgba<u8>, Vec<u8>>;
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum ErrCalc {
     Linear,
-    SqErr,
+    Square,
     Mse,
 }
 
@@ -29,7 +29,7 @@ impl Chunk {
         // Calculate raw error
         let calc = match err_calc {
             ErrCalc::Linear => linear_err,
-            ErrCalc::SqErr => sq_err,
+            ErrCalc::Square => square_err,
             ErrCalc::Mse => mse,
         };
         let (error_raw, color) = calc(&sub);
@@ -207,7 +207,7 @@ fn linear_err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
 }
 
 // Calculate total squared error
-fn sq_err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
+fn square_err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
     let mean = mean(sub);
     let output = abs_err_sq(sub, mean);
 
@@ -216,7 +216,7 @@ fn sq_err(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
 
 // Calculate mean squared error
 fn mse(sub: &SubImage<&ImgRgba>) -> ([u64; 4], Rgba<u8>) {
-    let (mut output, mean) = sq_err(sub);
+    let (mut output, mean) = square_err(sub);
 
     // MSE takes average of error
     let count = sub.pixels().count() as u64;
