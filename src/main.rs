@@ -7,12 +7,18 @@ use std::path::PathBuf;
 struct Args {
     /// Input image filename
     input: PathBuf,
-    /// Output filename [default: output.png]
-    output: Option<PathBuf>,
-    /// How many iterations to split the image [default: 500]
-    depth: Option<u32>,
-    /// Type of error calculation to use (linear, squared, mse) [default: squared]
-    err_calc: Option<ErrCalc>,
+    /// Output filename
+    #[arg(short, long, default_value = "output.png")]
+    output: PathBuf,
+    /// How many times to split the image
+    #[arg(short, long, default_value_t = 500)]
+    depth: u32,
+    /// Don't show borders
+    #[arg(short, long)]
+    no_borders: bool,
+    /// Type of error calculation to use
+    #[arg(short, long, value_enum, default_value_t = ErrCalc::SqErr)]
+    err_calc: ErrCalc,
 }
 
 fn main() {
@@ -22,16 +28,17 @@ fn main() {
     let img = ImageReader::open(&args.input).unwrap().decode().unwrap();
 
     println!("Generating quadtree...");
-    let quad = Quad::from_img(
+    let mut quad = Quad::from_img(
         img,
-        args.depth.unwrap_or(500),
-        args.err_calc.unwrap_or(ErrCalc::SqErr),
+        args.err_calc,
     );
+    quad.process(args.depth);
+
     println!("Rendering...");
-    let output = quad.render(true);
+    let output = quad.render(!args.no_borders);
 
     println!("Saving to disk...");
     output
-        .save(&args.output.unwrap_or_else(|| "output.png".into()))
+        .save(&args.output)
         .unwrap();
 }
