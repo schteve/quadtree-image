@@ -109,7 +109,11 @@ impl Quad {
     pub fn from_img(img: DynamicImage, err_calc: ErrCalc) -> Self {
         let img = img.into_rgba8(); // To keep this program simple we only operate in RGBA space
         let start = Chunk::from_img(&img, 0, 0, img.width(), img.height(), err_calc);
-        Self { chunks: vec![start], img, err_calc }
+        Self {
+            chunks: vec![start],
+            img,
+            err_calc,
+        }
     }
 
     pub fn process(&mut self, depth: u32) {

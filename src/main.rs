@@ -28,17 +28,12 @@ fn main() {
     let img = ImageReader::open(&args.input).unwrap().decode().unwrap();
 
     println!("Generating quadtree...");
-    let mut quad = Quad::from_img(
-        img,
-        args.err_calc,
-    );
+    let mut quad = Quad::from_img(img, args.err_calc);
     quad.process(args.depth);
 
     println!("Rendering...");
     let output = quad.render(!args.no_borders);
 
     println!("Saving to disk...");
-    output
-        .save(&args.output)
-        .unwrap();
+    output.save(&args.output).unwrap();
 }
