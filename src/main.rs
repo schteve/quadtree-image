@@ -1,4 +1,5 @@
 use clap::Parser;
+use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use image::{
     codecs::gif::{GifEncoder, Repeat},
@@ -32,13 +33,22 @@ struct Args {
     /// Loop the animation
     #[arg(short, long)]
     loop_anim: bool,
+    /// Resize the image to 480x480 (or smaller) before processing. This is most
+    /// useful for gifs, which can take a long time to encode if they are large.
+    #[arg(short, long)]
+    resize: bool,
 }
 
 fn main() {
     let args = Args::parse();
 
     println!("Reading source image...");
-    let img = ImageReader::open(&args.input).unwrap().decode().unwrap();
+    let mut img = ImageReader::open(&args.input).unwrap().decode().unwrap();
+
+    if args.resize {
+        println!("Resizing source image...");
+        img = img.resize(480, 480, FilterType::Lanczos3);
+    }
 
     println!("Generating quadtree...");
     let mut quad = Quad::from_img(img, args.err_calc);
