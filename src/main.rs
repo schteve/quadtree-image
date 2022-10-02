@@ -74,6 +74,11 @@ fn main() {
             if i % 10 == 0 {
                 println!("    Frame {i}");
             }
+            // Note: this line is where all the slowness happens. Seems that the `image` crate uses
+            // the `gif` crate with an expensive computation to determine the palette to use for each
+            // frame. After hitting 256 colors per frame it really chugs. Using another crate like
+            // `libimagequant` to determine a fixed palette for all frames doesn't seem to help.
+            // Might be interesting to try another common animated format like APNG instead.
             encoder.encode_frame(frame).unwrap();
         }
     } else {

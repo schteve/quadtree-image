@@ -10,7 +10,49 @@ Resizing them helps make the encode (and final file size) manageable.
 
 # Examples
 
-todo!
+The most interesting results seem to be images with large areas of low contrast but some areas of high contrast. This gives a wide range of ending quadrant sizes.
+
+## Dolphin
+
+![](assets/output/dolphin.png)
+![](assets/input/dolphin.jpg)
+
+## Moon & stars
+
+![](assets/output/moon_stars.png)
+![](assets/output/moon_stars_no_border.png)
+![](assets/input/moon_stars.jpg)
+
+## Mountains
+
+![](assets/output/mountains.png)
+![](assets/input/mountains.jpg)
+
+## Philadelphia skyline
+
+![](assets/output/philly.png)
+![](assets/input/philly.jpg)
+
+## Pluto
+
+![](assets/output/pluto.png)
+![](assets/input/pluto.png)
+
+## Sunflower
+
+![](assets/output/sunflower.png)
+![](assets/output/sunflower.gif)
+![](assets/input/sunflower.jpg)
+
+## Tropical
+
+![](assets/output/tropical.png)
+![](assets/input/tropical.jpg)
+
+## Wolf sun
+
+![](assets/output/wolf_sun.png)
+![](assets/input/wolf_sun.jpg)
 
 # References
 
