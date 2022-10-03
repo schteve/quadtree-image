@@ -5,11 +5,9 @@ use image::{
     codecs::gif::{GifEncoder, Repeat},
     Frame,
 };
+use png::{BitDepth, ColorType, Encoder};
 use quadtree_image::{ErrCalc, Quad};
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, path::PathBuf};
 
 #[derive(Parser)]
 struct Args {
@@ -49,38 +47,59 @@ fn main() {
         println!("Resizing source image...");
         img = img.resize(480, 480, FilterType::Lanczos3);
     }
+    let (width, height) = (img.width(), img.height());
 
     println!("Generating quadtree...");
     let mut quad = Quad::from_img(img, args.err_calc);
     if args.animation {
         println!("Encoding gif... (this might take a while)");
-        let out_file_name = if args.output.to_string_lossy() == "output.png" {
-            Path::new("output.gif")
-        } else {
-            &args.output
-        };
-        let out_file = File::create(out_file_name).unwrap();
+        let out_file = File::create(&args.output).unwrap();
 
-        let frames = (0..args.depth).map(|_| {
+        let frames_iter = (0..args.depth).map(|i| {
+            eprint!("\r    Frame {} / {}", i + 1, args.depth);
             quad.process(1);
-            let rendered = quad.render(!args.no_borders);
-            Frame::new(rendered)
+            quad.render(!args.no_borders)
         });
-        let mut encoder = GifEncoder::new(out_file);
-        if args.loop_anim {
-            encoder.set_repeat(Repeat::Infinite).unwrap();
-        }
-        for (i, frame) in frames.into_iter().enumerate() {
-            if i % 10 == 0 {
-                println!("    Frame {i}");
+
+        match args.output.extension() {
+            Some(x) if x == "png" => {
+                let mut encoder = Encoder::new(out_file, width, height);
+                encoder.set_color(ColorType::Rgba);
+                encoder.set_depth(BitDepth::Eight);
+                let num_plays = if args.loop_anim { 0 } else { 1 };
+                encoder.set_animated(args.depth, num_plays).unwrap();
+                encoder.validate_sequence(true);
+                let mut writer = encoder.write_header().unwrap();
+
+                for frame in frames_iter {
+                    writer.write_image_data(&frame.into_raw()).unwrap();
+                }
+                writer.finish().unwrap();
             }
-            // Note: this line is where all the slowness happens. Seems that the `image` crate uses
-            // the `gif` crate with an expensive computation to determine the palette to use for each
-            // frame. After hitting 256 colors per frame it really chugs. Using another crate like
-            // `libimagequant` to determine a fixed palette for all frames doesn't seem to help.
-            // Might be interesting to try another common animated format like APNG instead.
-            encoder.encode_frame(frame).unwrap();
+            Some(x) if x == "gif" => {
+                let mut encoder = GifEncoder::new(out_file);
+                if args.loop_anim {
+                    encoder.set_repeat(Repeat::Infinite).unwrap();
+                }
+
+                for frame in frames_iter {
+                    // Note: this line is where all the slowness happens. Seems that the `image` crate uses
+                    // the `gif` crate with an expensive computation to determine the palette to use for each
+                    // frame. After hitting 256 colors per frame it really chugs. Using another crate like
+                    // `libimagequant` to determine a fixed palette for all frames doesn't seem to help.
+                    let f = Frame::new(frame);
+                    encoder.encode_frame(f).unwrap();
+                }
+            }
+            Some(x) => {
+                panic!(
+                    "Unsupported animation style requested: {:?}",
+                    x.to_string_lossy()
+                );
+            }
+            _ => panic!("No animation style requested (use the file extension)"),
         }
+        eprintln!();
     } else {
         quad.process(args.depth);
 

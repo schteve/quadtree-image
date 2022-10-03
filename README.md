@@ -4,9 +4,9 @@ What you get if you split an image into quadrants repeatedly, focusing on the qu
 
 Some might use this as a form of image compression, but -- *Marge voice* -- I just think they're neat.
 
-Now with animations! These start to 'shimmer' because gifs have a limited color palette. Some other animated format would be better.
-Gifs can also take a very long time to encode, apparently due to the palette calculations once the image uses more than 256 colors.
-Resizing them helps make the encode (and final file size) manageable.
+Now with animations! These can be either gifs, or animated PNGs. Gifs are a bit more limited, they start to 'shimmer' because the file format has a limited color palette. Gifs can also take a very long time to encode, apparently due to the palette calculations once the image uses more than 256 colors. Animated PNG encodes much more quickly and avoids the shimmer. For both formats, resizing them improves the code speed and final file size.
+
+Output format is auto-selected using the output file extension.
 
 # Examples
 
@@ -41,7 +41,7 @@ The most interesting results seem to be images with large areas of low contrast 
 ## Sunflower
 
 ![](assets/output/sunflower.png)
-![](assets/output/sunflower.gif)
+![](assets/output/sunflower_anim.png)
 ![](assets/input/sunflower.jpg)
 
 ## Tropical
